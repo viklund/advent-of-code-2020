@@ -1,0 +1,1 @@
+-nalE 'BEGIN{$/="\n\n"}$c+=7==grep/byr|iyr|eyr|hgt|hcl|ecl|pid/,@F;END{say$c}'

@@ -1,0 +1,1 @@
+-nlaE 'sub p{join"|",$_[0]..$_[1]}BEGIN{$/="\n\n"}$c+=7==grep$_,map{m/^(byr:(??{p(1920,2002)})|iyr:(??{p(2010,2020)})|eyr:(??{p(2020,2030)})|pid:\d{9}|ecl:(amb|blu|brn|gry|grn|hzl|oth)|hcl:#[0-9a-f]{6}|hgt:((??{p(150,193)})cm|(??{p(59,76)})in))$/||0}@F;END{say$c}'
