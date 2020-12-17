@@ -14,7 +14,7 @@ while (<>) {
     my @c = split //, $_;
     for my $idx ( 0 .. $#c ) {
         if ( $c[$idx] eq '#' ) {
-            my $coord = sprintf("%d,%d,%d", $idx,$.,0);
+            my $coord = sprintf("%d,%d,%d,%d", $idx,$.,0,0);
             $world->{$coord} = 1;
         }
     }
@@ -23,7 +23,6 @@ while (<>) {
 for (1..6) {
     $world = step($world);
 }
-
 my $n = grep { exists $world->{$_} } keys %$world;
 say "Active $n";
 
@@ -56,19 +55,21 @@ sub step {
     my $new_world = {};
 
     my @bounding = get_bounding_box( $world );
-    for my $x ( $bounding[0] .. $bounding[3] ) {
-        for my $y ( $bounding[1] .. $bounding[4] ) {
-            for my $z ( $bounding[2] .. $bounding[5] ) {
-                my $c = "$x,$y,$z";
+    for my $x ( $bounding[0] .. $bounding[4] ) {
+        for my $y ( $bounding[1] .. $bounding[5] ) {
+            for my $z ( $bounding[2] .. $bounding[6] ) {
+                for my $w ( $bounding[3] .. $bounding[7] ) {
+                    my $c = "$x,$y,$z,$w";
 
-                my @n = get_neighbours( $c );
-                my @a = grep { exists $world->{$_} } @n;
+                    my @n = get_neighbours( $c );
+                    my @a = grep { exists $world->{$_} } @n;
 
-                if ( exists $world->{$c} && (@a == 2 || @a == 3) ) {
-                    $new_world->{$c} = 1;
-                }
-                elsif ( !exists $world->{$c} && @a == 3 ) {
-                    $new_world->{$c} = 1;
+                    if ( exists $world->{$c} && (@a == 2 || @a == 3) ) {
+                        $new_world->{$c} = 1;
+                    }
+                    elsif ( !exists $world->{$c} && @a == 3 ) {
+                        $new_world->{$c} = 1;
+                    }
                 }
             }
         }
@@ -84,32 +85,29 @@ sub get_bounding_box {
     my ($xmax) = max map { $_->[0] } @coords;
     my ($ymax) = max map { $_->[1] } @coords;
     my ($zmax) = max map { $_->[2] } @coords;
+    my ($wmax) = max map { $_->[3] } @coords;
     my ($xmin) = min map { $_->[0] } @coords;
     my ($ymin) = min map { $_->[1] } @coords;
     my ($zmin) = min map { $_->[2] } @coords;
+    my ($wmin) = min map { $_->[3] } @coords;
     
-    return ($xmin-1, $ymin-1, $zmin-1, $xmax+1, $ymax+1, $zmax+1);
+    return ($xmin-1, $ymin-1, $zmin-1, $wmin-1, $xmax+1, $ymax+1, $zmax+1, $wmax+1);
 }
 
 sub get_neighbours {
     my $coord = shift;
-    my ($x,$y,$z) = split /,/, $coord;
-
-    my @ops = ( [ 1, 1, 1], [ 1, 1, 0], [ 1, 1,-1],
-                [ 1, 0, 1], [ 1, 0, 0], [ 1, 0,-1],
-                [ 1,-1, 1], [ 1,-1, 0], [ 1,-1,-1],
-
-                [ 0, 1, 1], [ 0, 1, 0], [ 0, 1,-1],
-                [ 0, 0, 1],           , [ 0, 0,-1],
-                [ 0,-1, 1], [ 0,-1, 0], [ 0,-1,-1],
-
-                [-1, 1, 1], [-1, 1, 0], [-1, 1,-1],
-                [-1, 0, 1], [-1, 0, 0], [-1, 0,-1],
-                [-1,-1, 1], [-1,-1, 0], [-1,-1,-1]);
+    my ($x,$y,$z,$w) = split /,/, $coord;
 
     my @r;
-    for my $o (@ops) {
-        push @r, sprintf "%d,%d,%d", $x+$o->[0], $y+$o->[1], $z+$o->[2];
+    for my $xd ( 1,0,-1 ) {
+        for my $yd ( 1,0,-1 ) {
+            for my $zd ( 1,0,-1 ) {
+                for my $wd ( 1,0,-1 ) {
+                    next if $xd == 0 && $yd == 0 && $zd == 0 && $wd == 0;
+                    push @r, join(',', $x+$xd, $y+$yd, $z+$zd, $w+$wd);
+                }
+            }
+        }
     }
 
     return @r;
