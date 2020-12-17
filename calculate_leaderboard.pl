@@ -72,6 +72,10 @@ for my $ts ( sort { $a <=> $b } keys %at ) {
     $score_of{$at{$ts}[0]} += $day_points{$at{$ts}[1]};
     $stars_of{$at{$ts}[0]} += 1;
 
+    if ( $day_points{ $at{$ts}[1] } == $num_contestants ) {
+        printf "%s\n", $at{$ts}[0];
+    }
+
     $contestant_points_per_day{$at{$ts}[1]}{$at{$ts}[0]} = $day_points{ $at{$ts}[1] };
 
     if (--$day_points{$at{$ts}[1]} < 0) {
