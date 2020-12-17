@@ -48,11 +48,13 @@ for my $m ( values %$json ) {
 }
 
 my @scores;
-my %score_of;
-my %stars_of;
+my %score_of = map { ($_,0) } @contestants;
+my %stars_of = map { ($_,0) } @contestants;
 my %day_points = map { ("$_-1" => $num_contestants, "$_-2" => $num_contestants) } keys %all_days;
 #$day_points{"1-1"} = 0;
 #$day_points{"1-2"} = 0;
+
+my %contestant_points_per_day = ();
 
 @contestants = sort @contestants;
 
@@ -70,6 +72,8 @@ for my $ts ( sort { $a <=> $b } keys %at ) {
     $score_of{$at{$ts}[0]} += $day_points{$at{$ts}[1]};
     $stars_of{$at{$ts}[0]} += 1;
 
+    $contestant_points_per_day{$at{$ts}[1]}{$at{$ts}[0]} = $day_points{ $at{$ts}[1] };
+
     if (--$day_points{$at{$ts}[1]} < 0) {
         $day_points{$at{$ts}[1]} = 0;
     }
@@ -77,6 +81,22 @@ for my $ts ( sort { $a <=> $b } keys %at ) {
     say $POINTS join "\t", $ts, map { $score_of{$_} // 0 } @contestants;
     say $STARS  join "\t", $ts, map { $stars_of{$_} // 0 } @contestants;
 }
+
+@contestants = sort { $score_of{$b} <=> $score_of{$a} } @contestants;
+
+open my $DAYS, '>', 'chart-days.tsv' or die;
+my @days = sort {
+        my ($a1,$a2)=$a=~/(\d+)-(\d+)/;
+        my ($b1,$b2)=$b=~/(\d+)-(\d+)/;
+
+        $a1 <=> $b1 || $a2 <=> $b2 || $a cmp $b
+    } keys %contestant_points_per_day;
+
+say $DAYS join "\t", map { qq'P$_' } 'name', @days;
+for my $name (@contestants) {
+    say $DAYS join("\t", $name, map { $contestant_points_per_day{$_}{$name} // 0 } @days);
+}
+close $DAYS;
 
 #say Dumper( \%at );
 
