@@ -21,54 +21,48 @@ while (<>) {
     my @terms;
     my @tokens = split /\s+/, "( $_ )";
     TOKEN:
-    for my $token (@tokens) {
-        #say "$token :: @terms";
-        if ($token =~ /\d+/) {
+    for (@tokens) {
+        when (/\d+/) {
             if (@terms && $terms[-1] =~ /\+/) {
                 pop @terms;
                 my $o = pop @terms;
-                push @terms, $o + $token;
+                push @terms, $o + $_;
                 next TOKEN;
             }
             if (@terms && $terms[-1] =~ /\*/) {
-                push @terms, $token;
+                push @terms, $_;
                 next TOKEN;
             }
-            push @terms, $token;
+            push @terms, $_;
         }
-        if ( $token =~ /\+|\*/ ) {
-            push @terms, $token;
+        when ([qw/ + * ( /]) {
+            push @terms, $_;
         }
-        if ( $token =~ /\(/) {
-            push @terms, $token;
-            next TOKEN;
-        }
-        if ($token =~ /\)/) {
+        when ( ')' ) {
             my $r = pop @terms;
             INNER:
-            while (1) {
-                #say " -> $r :: @terms";
-                if ( $terms[-1] eq '(' ) {
-                    pop @terms;
-                    if (@terms == 0 ) {
-                        push @terms, $r;
-                        next TOKEN;
-                    }
-                    if ( $terms[-1] eq '+' ) {
-                        pop @terms;
-                        $r += pop @terms;
-                    }
-                    push @terms, $r;
-                    next TOKEN;
-                }
-                if ( $terms[-1] eq '*' ) {
-                    pop @terms;
+            while ( $terms[-1] ne '(' ) {
+                my $t = pop @terms;
+                if ( $t eq '*' ) {
                     $r *= pop @terms;
+                    next INNER;
                 }
                 else {
                     die "WTF\n";
                 }
             }
+
+            pop @terms;
+            if (@terms == 0 ) {
+                push @terms, $r;
+                next TOKEN;
+            }
+            if ( $terms[-1] eq '+' ) {
+                pop @terms;
+                $r += pop @terms;
+            }
+            push @terms, $r;
+            next TOKEN;
         }
     }
     die "$. (@terms)\n" if ( @terms != 1 );

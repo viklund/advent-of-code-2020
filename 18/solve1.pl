@@ -18,31 +18,25 @@ while (<>) {
 
     my @terms;
     TOKEN:
-    for my $token (split) {
-        if ($token =~ /\d+/) {
+    for (split) {
+        when (/\d+/) {
             if (@terms && $terms[-1] =~ /\+/) {
                 pop @terms;
                 my $o = pop @terms;
-                push @terms, $o + $token;
+                push @terms, $o + $_;
                 next TOKEN;
             }
             if (@terms && $terms[-1] =~ /\*/) {
                 pop @terms;
                 my $o = pop @terms;
-                push @terms, $o * $token;
+                push @terms, $o * $_;
                 next TOKEN;
             }
-            push @terms, $token;
+            push @terms, $_;
         }
-        if ( $token =~ /\+|\*/ ) {
-            push @terms, $token;
-        }
-        if ( $token =~ /\(/) {
-            push @terms, $token;
-            next TOKEN;
-        }
-        if ($token =~ /\)/) {
-            $token = pop @terms;
+        when ([qw/ + * ( /]) { push @terms, $_ }
+        when (')') {
+            $_ = pop @terms;
             pop @terms;
             redo TOKEN;
         }
