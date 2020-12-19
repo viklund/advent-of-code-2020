@@ -28,10 +28,18 @@ while (<>) {
     }
 }
 
-#say Dumper( \%rules);
-my $regex = build_regex_from_rules(\%rules, 0);
-#say build_regex_from_rules( \%rules, 0 );
-#exit;
+
+my $forty_two = build_regex_from_rules( \%rules, 42 );
+my $thirty_one = build_regex_from_rules( \%rules, 31 );
+
+my $regex = $forty_two . '+';
+my @ms = ();
+for my $num (1..10) { ## it should go to infinity, but 10 "works"
+    my $m = sprintf "((%s){%d}(%s){%d})", $forty_two, $num, $thirty_one, $num;
+    push @ms, $m;
+}
+
+$regex .= '(' . join('|', @ms ) . ')';
 
 $regex = qr/^$regex$/o;
 say $regex;
