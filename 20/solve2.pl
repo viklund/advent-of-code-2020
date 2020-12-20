@@ -70,7 +70,9 @@ my $start_tile;
 for my $tn (keys %tiles) {
     my $nedge = grep { $_->[1] == 0 } @{ $index{$tn} };
     if ( $nedge == 2 ) {
-        $start_tile = $tn;
+        if ( !defined $start_tile || $tn < $start_tile ) {
+            $start_tile = $tn;
+        }
     }
 }
 
@@ -137,11 +139,14 @@ say join(" ", @$_) for @map;
 
 ## Merge map
 my @big_one;
+ROW:
 for my $row ( 0..$#map ) {
+    COL:
     for my $col ( 0..$#map ) {
         my $tn = $map[$row][$col];
         my $tile = $tiles{ $tn };
-        say "- - - - - - - - - - - - - - - -\nPlacing $tn";
+        say "- - - - - - - - - - - - - - - -\nPlacing $row $col $tn";
+        big();
         say join("", @$_) for @$tile;
 
         if ( $row == 0 && $col == 0 ) {
@@ -162,18 +167,58 @@ for my $row ( 0..$#map ) {
                     $big_one[$ii][$jj] = $r->[$ii][$jj];
                 }
             }
-            big();
             next;
         }
-        if ( $col > 0 ) {
-            my $last_edge = join '', map { $big_one[$_][-1] } 0..9;
-            big();
+        if ( $col == 0 && $row > 0 ) {
+            say " NEW ROW";
+            my $last_edge = join '', map { $big_one[-1][$_] } 0..9;
+            my $r = $tile;
             say "LAST: $last_edge";
 
             EDGE:
             for my $edge_index ( 0..3 ) {
-                my $edge = $index{$tn}[$edge_index][0];
-                say "EDGE: $edge";
+                my $edge = get_edge($tile, $edge_index);
+                say "EDGE($edge_index): $edge";
+
+                if ( $last_edge eq $edge ) {
+                    ## Found it, just rotate and push
+                    $r = rotate($r, 3-$edge_index);
+                    $r = rotate($r, 1);
+                    say "ROTTED";
+                    next EDGE;
+                }
+                if ( $last_edge eq reverse $edge ) {
+                    $r = flip( $r );
+                    # rot 1 and flip => only flip
+                    # rot 0 and flip => flip rot 3
+                    $r = rotate($r, $edge_index);
+                    #if ( $edge_index == 3 ) {
+                    #    $r = rotate($r, $edge_index);
+                    #}
+                    #if ( $edge_index == 2 ) {
+                    #    $r = rotate($r, $edge_index);
+                    #}
+                    say "ROT FLIPPED";
+                    last EDGE;
+                }
+            }
+
+            say join("", @$_) for @$r;
+            for my $ii ( 0 .. $#$r ) {
+                for my $jj ( 0 .. $#{ $r->[$ii] } ) {
+                    $big_one[ $ii + $row*10 ][ $jj + $col*10 ] = $r->[$ii][$jj];
+                }
+            }
+            next;
+        }
+        if ( $col > 0 ) {
+            my $last_edge = join '', reverse map { $big_one[$_ + $row*10 ][-1] } 0..9;
+            say "LAST: $last_edge";
+
+            EDGE:
+            for my $edge_index ( 0..3 ) {
+                my $edge = get_edge($tile, $edge_index);
+                say "EDGE($edge_index): $edge";
 
                 if ( $last_edge eq $edge ) {
                     ## Found it, just rotate and push
@@ -185,19 +230,123 @@ for my $row ( 0..$#map ) {
                             $big_one[ $ii + $row*10 ][ $jj + $col*10 ] = $r->[$ii][$jj];
                         }
                     }
-                    big();
-                    exit;
+                    next COL;
                 }
                 if ( $last_edge eq reverse $edge ) {
-                    my $r = rotate( flip($tile), $edge_index);
+                    my $r = flip( $tile );
+                    # rot 1 and flip => only flip
+                    # rot 0 and flip => flip rot 3
+                    if ( $edge_index == 0 ) {
+                        $r = rotate($r, 3);
+                    }
+                    if ( $edge_index == 2 ) {
+                        $r = rotate($r, 1);
+                    }
+                    if ( $edge_index == 3 ) {
+                        $r = rotate($r, 2);
+                    }
                     say "ROT FLIPPED";
                     say join("", @$_) for @$r;
-                    exit;
+
+                    for my $ii ( 0 .. $#$r ) {
+                        for my $jj ( 0 .. $#{ $r->[$ii] } ) {
+                            $big_one[ $ii + $row*10 ][ $jj + $col*10 ] = $r->[$ii][$jj];
+                        }
+                    }
+                    next COL;
                 }
             }
-            exit;
+
+            say "MAP";
+            say join(" ", @$_) for @map;
+
+            die "WTF";
         }
     }
+}
+
+
+
+big();
+
+say scalar( @big_one );
+
+my @prunes = map { ($_*10, $_*10+9) }  0..11;
+for my $p ( reverse @prunes ) {
+    say "Splicing $p";
+    splice @big_one, $p, 1;
+    for my $col ( @big_one ) {
+        splice @$col, $p, 1;
+    }
+}
+
+say join("", @$_) for @big_one;
+
+
+#### Look for monsters
+my @pattern = map { [split //, $_] } (
+    "                  # ",
+    "#    ##    ##    ###",
+    " #  #  #  #  #  #   ");
+
+my @positions;
+for my $ridx (0..$#pattern) {
+    for my $c ( 0.. $#{$pattern[$ridx]} ) {
+        if ( $pattern[$ridx][$c] eq '#' ) {
+            push @positions, [$ridx, $c];
+        }
+    }
+}
+
+printf "%2d, %2d\n", @$_ for @positions;
+
+for my $rot (0..3) {
+    my $this = rotate( \@big_one, $rot );
+    my $matches = 0;
+
+    ROW:
+    for my $ii ( 0 .. $#big_one ) {
+        COL:
+        for my $jj ( 0 .. $#big_one ) {
+            ## End of row
+            next ROW if $jj+19 > $#big_one;
+
+            for my $pos ( @positions ) {
+                next COL if $ii+$pos->[0] > $#big_one;
+                next COL if $jj+$pos->[1] > $#big_one;
+                next COL if $this->[ $ii+$pos->[0] ][ $jj+$pos->[1] ] eq '.';
+            }
+            say "Found one";
+            $matches++;
+            for my $pos ( @positions ) {
+                $this->[ $ii+$pos->[0] ][ $jj+$pos->[1] ] = 'O';
+            }
+        }
+    }
+
+    printf "%d  %d\n", $rot, $matches;
+    if ( $matches > 0 ) {
+        say join("", @$_) for @$this;
+        my $squares = grep { $_ eq '#' } map { @$_ } @$this;
+        say $squares;
+    }
+}
+
+sub get_edge {
+    my ($tile, $edge) = @_;
+    if ( $edge == 0 ) {
+        return join "", @{ $tile->[0] };
+    }
+    if ( $edge == 1 ) {
+        return join "", map { $tile->[$_][-1] } 0..$#$tile;
+    }
+    if ( $edge == 2 ) {
+        return join "", reverse @{ $tile->[-1] };
+    }
+    if ( $edge == 3 ) {
+        return join "", reverse map { $tile->[$_][0] } 0..$#$tile;
+    }
+    die "NOOOOoooo";
 }
 
 sub flip {
@@ -247,13 +396,32 @@ sub rotate {
 
 sub big {
     say "BIG";
-    say join("", @$_) for @big_one;
+    my $l = $#{ $big_one[0] };
+    for (0..$l) {
+        if ( $_ % 10 == 0 ) {
+            print " ";
+        }
+        print $_%10;
+    }
+    print "\n";
+    for my $ridx ( 0..$#big_one ) {
+        print "\n" if $ridx % 10 == 0;
+        my $r = $big_one[$ridx];
+        for my $idx (0..$#$r) {
+            if ( $idx % 10 == 0 ) {
+                print " ";
+            }
+            print $r->[$idx];
+        }
+        print "\n";
+    }
+    print "\n";
 }
 
 
 sub get_neighbors_tn {
     my $tn = shift;
-    return map { $_->[0] } values %{ $tile_lookup{ $tn } };
+    return sort map { $_->[0] } values %{ $tile_lookup{ $tn } };
 }
 
 sub match_edge {
