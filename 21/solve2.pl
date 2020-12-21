@@ -9,8 +9,8 @@ use List::Util qw();
 use List::MoreUtils qw( duplicates uniq singleton );
 use Data::Dumper;
 
+#my @lists;
 
-my %all_food = ();
 my %might_contain = ();
 
 while (<>) {
@@ -18,7 +18,6 @@ while (<>) {
     my @foods = sort split /\s+/, $food;
     my @aller = sort split /\s*,\s*/, $allergens;
 
-    $all_food{$_}++ for @foods;
     for my $a (@aller) {
         push @{ $might_contain{$a} }, [ @foods ];
     }
@@ -35,11 +34,22 @@ for my $a (keys %might_contain) {
     $short_list{$a} = \@s;
 }
 
-my @possibly_allergens = uniq map { @$_ } values %short_list;
 
-my @none = singleton @possibly_allergens, keys %all_food;
+while (1) {
+    my $change = 0;
+    my @singletons =  grep { @{$short_list{$_}} == 1 } keys %short_list;
+    for my $allergen (keys %short_list) {
+        for my $s (@singletons) {
+            next if $s eq $allergen;
+            my $ingredient = $short_list{$s}[0];
+            my @ing = grep { $_ ne $ingredient } @{ $short_list{$allergen} };
+            if ( @ing < @{ $short_list{$allergen} } ) {
+                $change++;
+            }
+            $short_list{$allergen} = \@ing;
+        }
+    }
+    last unless $change;
+}
 
-my $s = 0;
-$s += $all_food{$_} for @none;
-say $s;
-
+say join(',', map { $short_list{$_}[0] } sort keys %short_list);
